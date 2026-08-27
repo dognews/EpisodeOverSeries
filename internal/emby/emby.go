@@ -3,23 +3,33 @@ package emby
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"strconv"
+	"time"
 
 	"resty.dev/v3"
 )
 
 var client = resty.New()
 
-func IsServerOnline() {
-	resp, _ := client.R().SetQueryParams(map[string]string{
+func IsServerOnline() error {
+	resp, err := client.R().SetTimeout(2*time.Second).SetQueryParams(map[string]string{
 		"api_key": apiKey,
 	}).SetHeader("Accept", "application/json").
 		Get(fmt.Sprintf("%s/emby/System/Info", serverIp))
 
-	fmt.Print(resp.String())
+	if err != nil {
+		return err
+	}
+
+	if resp.IsStatusFailure() {
+		return errors.New("server rejected credentials")
+	}
+
+	return nil
 }
 
 func GetAllSeries() []int {
@@ -58,14 +68,13 @@ func GetAllSeries() []int {
 	return series
 }
 
-func GetSeriesEpisodeData(seriesId int) []ImageData {
+func GetSeriesEpisodeData(seriesId int) ([]ImageData, error) {
 	var episodeData []ImageData
 	returnedItems := pageLength
 	currentIndex := 0
 
 	for returnedItems == pageLength {
 		var content itemsRequest
-
 		resp, err := client.R().SetQueryParams(map[string]string{
 			"api_key":    apiKey,
 			"ParentId":   strconv.Itoa(seriesId),
@@ -79,7 +88,7 @@ func GetSeriesEpisodeData(seriesId int) []ImageData {
 			fmt.Sprintf("%s/emby/Items", serverIp))
 
 		if err != nil || resp.IsStatusFailure() {
-			log.Fatal("Failed to fetch tv shows!")
+			return []ImageData{}, err
 		}
 
 		for _, item := range content.Items {
@@ -90,7 +99,11 @@ func GetSeriesEpisodeData(seriesId int) []ImageData {
 		currentIndex += pageLength
 	}
 
-	return episodeData
+	if len(episodeData) == 0 {
+		return episodeData, errors.New("no episode data found")
+	}
+
+	return episodeData, nil
 }
 
 func GetEpisodeImage(episodeImageData ImageData, imageType string, imageBuffer *bytes.Buffer) error {
@@ -128,4 +141,9 @@ func RemoveEpisodeImage(episodeImageData ImageData, imageType string) error {
 	_, err := client.R().SetQueryParam("api_key", apiKey).Post(serverip)
 
 	return err
+}
+
+func SetCredentials(ip string, api string) {
+	serverIp = ip
+	apiKey = api
 }

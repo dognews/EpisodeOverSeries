@@ -1,9 +1,11 @@
 package emby
 
 // Constants
-const serverIp = "http://alpinehome-host:8096"
-const apiKey = "REMOVED"
+var serverIp = "NONE"
+var apiKey = "NONE"
+
 const pageLength = 50
+const BufferDefaultSize = 1048576 // (1MB) ^2 aligned
 
 // Emby Types
 type itemEntry struct {
