@@ -5,6 +5,8 @@
 </div>
 
 ## Quick Start
+> [!CAUTION]
+> This program should run on the same network as your Emby server, and use its local IP address.
 ### Requirements
 * go (>=1.26)
 ### Build
